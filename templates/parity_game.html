@@ -1,0 +1,592 @@
+{% extends "base.html" %}
+{% block title %}Put-Call Parity Game – Options Toolkit{% endblock %}
+
+{% block head_extra %}
+<style>
+  .game-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+  .game-metrics {
+    display: grid;
+    grid-template-columns: repeat(2, auto);
+    gap: 6px 16px;
+    font-size: 0.95rem;
+  }
+  .metric-label {
+    color: #6b7280;
+  }
+  .metric-value {
+    font-weight: 600;
+  }
+  .game-controls {
+    display: flex;
+    align-items: flex-end;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+  .timer-input-group label {
+    display: block;
+    font-size: 0.8rem;
+    color: #6b7280;
+    margin-bottom: 2px;
+  }
+  .timer-input-group input {
+    width: 90px;
+    padding: 4px 6px;
+    border-radius: 6px;
+    border: 1px solid #d1d5db;
+    font-size: 0.9rem;
+  }
+  .btn-primary {
+    padding: 8px 14px;
+    border-radius: 6px;
+    border: none;
+    background: #2563eb;
+    color: #fff;
+    cursor: pointer;
+    font-size: 0.9rem;
+  }
+  .btn-secondary {
+    padding: 8px 14px;
+    border-radius: 6px;
+    border: 1px solid #d1d5db;
+    background: #fff;
+    color: #111827;
+    cursor: pointer;
+    font-size: 0.9rem;
+  }
+  .btn-primary:disabled,
+  .btn-secondary:disabled {
+    opacity: 0.5;
+    cursor: default;
+  }
+
+  .parity-board {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-gap: 16px;
+  }
+  .parity-tile {
+    background: linear-gradient(135deg, #ffffff, #f3f4f6);
+    border-radius: 12px;
+    padding: 16px 18px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    min-height: 110px;
+  }
+  .parity-label {
+    font-size: 0.9rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: #6b7280;
+    margin-bottom: 4px;
+  }
+  .parity-symbol {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: #4b5563;
+    margin-bottom: 6px;
+  }
+  .parity-value {
+    font-size: 1.6rem;
+    font-weight: 700;
+    color: #111827;
+  }
+  .parity-tile.missing {
+    border: 1px solid #f97316;
+    box-shadow: 0 0 0 2px rgba(249,115,22,0.15);
+  }
+  .parity-tile.missing .parity-symbol {
+    color: #ea580c;
+  }
+  .parity-tile.missing .parity-value {
+    color: #ea580c;
+  }
+
+  .answer-bar {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .answer-top-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+  .answer-equation {
+    font-size: 0.9rem;
+    color: #6b7280;
+  }
+  .answer-input-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+  .answer-input-row label {
+    font-size: 0.95rem;
+    margin-bottom: 0;
+  }
+  .answer-input-row input[type=number] {
+    font-size: 1.4rem;
+    padding: 6px 10px;
+    border-radius: 8px;
+    border: 1px solid #d1d5db;
+    max-width: 180px;
+  }
+  .answer-input-row button {
+    padding: 10px 18px;
+    border-radius: 8px;
+    font-size: 0.95rem;
+  }
+  #feedback {
+    font-size: 0.95rem;
+  }
+  #feedback.correct {
+    color: #16a34a;
+  }
+  #feedback.incorrect {
+    color: #dc2626;
+  }
+  #feedback.info {
+    color: #6b7280;
+  }
+
+  .history-table-wrapper {
+    max-height: 300px;
+    overflow-y: auto;
+  }
+  table.history-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.85rem;
+  }
+  table.history-table th,
+  table.history-table td {
+    border-bottom: 1px solid #e5e7eb;
+    padding: 6px 8px;
+    text-align: right;
+    white-space: nowrap;
+  }
+  table.history-table th {
+    background: #f3f4f6;
+    text-align: right;
+    font-weight: 600;
+    color: #4b5563;
+    position: sticky;
+    top: 0;
+    z-index: 1;
+  }
+  table.history-table th:first-child,
+  table.history-table td:first-child {
+    text-align: left;
+  }
+  .history-row-correct {
+    color: #15803d;
+  }
+  .history-row-incorrect {
+    color: #b91c1c;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<h1>Put-Call Parity Game</h1>
+
+<div class="card">
+  <div class="game-header">
+    <div class="game-metrics">
+      <div class="metric-label">Time remaining</div>
+      <div class="metric-value"><span id="timeRemaining">60</span> s</div>
+
+      <div class="metric-label">Questions attempted</div>
+      <div class="metric-value" id="questionsAttempted">0</div>
+
+      <div class="metric-label">Correct</div>
+      <div class="metric-value" id="questionsCorrect">0</div>
+
+      <div class="metric-label">Accuracy</div>
+      <div class="metric-value" id="accuracy">0%</div>
+    </div>
+
+    <div class="game-controls">
+      <div class="timer-input-group">
+        <label for="gameLengthInput">Game length (seconds)</label>
+        <input type="number" id="gameLengthInput" min="10" step="10" value="60">
+      </div>
+      <button id="startButton" class="btn-primary">
+        Start
+      </button>
+      <button id="resetButton" class="btn-secondary">
+        Reset
+      </button>
+    </div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="parity-board">
+    <div class="parity-tile" id="tileC">
+      <div class="parity-label">Call price</div>
+      <div class="parity-symbol">C</div>
+      <div class="parity-value" id="valueC">–</div>
+    </div>
+    <div class="parity-tile" id="tileP">
+      <div class="parity-label">Put price</div>
+      <div class="parity-symbol">P</div>
+      <div class="parity-value" id="valueP">–</div>
+    </div>
+    <div class="parity-tile" id="tileF">
+      <div class="parity-label">Forward price</div>
+      <div class="parity-symbol">F</div>
+      <div class="parity-value" id="valueF">–</div>
+    </div>
+    <div class="parity-tile" id="tileK">
+      <div class="parity-label">Strike</div>
+      <div class="parity-symbol">K</div>
+      <div class="parity-value" id="valueK">–</div>
+    </div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="answer-bar">
+    <div class="answer-top-row">
+      <div class="answer-equation">
+        Target identity:&nbsp; <strong>C - P = F - K</strong>
+      </div>
+      <div class="answer-equation">
+        Missing value:&nbsp; <strong id="missingLabel">–</strong>
+      </div>
+    </div>
+
+    <div class="answer-input-row" id="answerSection" style="display: none;">
+      <label for="answerInput">Your answer:</label>
+      <input type="number" id="answerInput" step="0.01">
+      <button id="submitAnswerButton" class="btn-primary">
+        Submit
+      </button>
+    </div>
+
+    <p id="feedback" class="info"></p>
+  </div>
+</div>
+
+<div class="card">
+  <h2 style="margin-top: 0; margin-bottom: 8px;">Answer History</h2>
+  <p style="font-size: 0.85rem; color: #6b7280; margin-top: 0;">
+    Each row shows your answer vs the correct value and the full parameter set (C, P, F, K).
+  </p>
+  <div class="history-table-wrapper">
+    <table class="history-table">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Result</th>
+          <th>Missing</th>
+          <th>Your answer</th>
+          <th>Correct</th>
+          <th>C</th>
+          <th>P</th>
+          <th>F</th>
+          <th>K</th>
+        </tr>
+      </thead>
+      <tbody id="historyBody">
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}
+
+{% block body_scripts %}
+<script>
+  const API_URL_PARITY = "{{ url_for('greeks.parity_question') }}";
+
+  let timerSeconds = 60;
+  let remaining = timerSeconds;
+  let timerId = null;
+  let gameRunning = false;
+
+  let currentQuestion = null;
+  let questionsAttempted = 0;
+  let questionsCorrect = 0;
+
+  const timeEl = document.getElementById('timeRemaining');
+  const attemptedEl = document.getElementById('questionsAttempted');
+  const correctEl = document.getElementById('questionsCorrect');
+  const accuracyEl = document.getElementById('accuracy');
+
+  const gameLengthInput = document.getElementById('gameLengthInput');
+  const questionTiles = {
+    C: {
+      tile: document.getElementById('tileC'),
+      valueEl: document.getElementById('valueC'),
+    },
+    P: {
+      tile: document.getElementById('tileP'),
+      valueEl: document.getElementById('valueP'),
+    },
+    F: {
+      tile: document.getElementById('tileF'),
+      valueEl: document.getElementById('valueF'),
+    },
+    K: {
+      tile: document.getElementById('tileK'),
+      valueEl: document.getElementById('valueK'),
+    },
+  };
+
+  const feedbackEl = document.getElementById('feedback');
+  const answerSectionEl = document.getElementById('answerSection');
+  const answerInputEl = document.getElementById('answerInput');
+  const submitBtn = document.getElementById('submitAnswerButton');
+  const missingLabelEl = document.getElementById('missingLabel');
+  const startBtn = document.getElementById('startButton');
+  const resetBtn = document.getElementById('resetButton');
+
+  const historyBodyEl = document.getElementById('historyBody');
+  let history = [];
+
+  function updateStatusUI() {
+    timeEl.textContent = remaining;
+    attemptedEl.textContent = questionsAttempted;
+    correctEl.textContent = questionsCorrect;
+    const acc = questionsAttempted > 0 ? (questionsCorrect / questionsAttempted * 100).toFixed(1) : '0';
+    accuracyEl.textContent = acc + '%';
+  }
+
+  function renderHistory() {
+    historyBodyEl.innerHTML = '';
+    history.forEach((entry, idx) => {
+      const tr = document.createElement('tr');
+      tr.className = entry.isCorrect ? 'history-row-correct' : 'history-row-incorrect';
+      const cells = [
+        idx + 1,
+        entry.isCorrect ? '✅' : '❌',
+        entry.missing,
+        entry.userAnswer.toFixed(2),
+        entry.correctAnswer.toFixed(2),
+        entry.C.toFixed(2),
+        entry.P.toFixed(2),
+        entry.F.toFixed(2),
+        entry.K.toFixed(2),
+      ];
+      cells.forEach((val, i) => {
+        const td = document.createElement('td');
+        td.textContent = val;
+        tr.appendChild(td);
+      });
+      historyBodyEl.appendChild(tr);
+    });
+  }
+
+  function addHistoryEntry(isCorrect, userAnswer, correctAnswer, q) {
+    // Fill in full parameters with missing replaced by correct
+    const missing = q.missing;
+    const fullC = (q.C === null && missing === 'C') ? correctAnswer : q.C;
+    const fullP = (q.P === null && missing === 'P') ? correctAnswer : q.P;
+    const fullF = (q.F === null && missing === 'F') ? correctAnswer : q.F;
+    const fullK = (q.K === null && missing === 'K') ? correctAnswer : q.K;
+
+    history.push({
+      isCorrect,
+      missing,
+      userAnswer,
+      correctAnswer,
+      C: fullC,
+      P: fullP,
+      F: fullF,
+      K: fullK
+    });
+    renderHistory();
+  }
+
+  async function fetchQuestion() {
+    const res = await fetch(API_URL_PARITY);
+    if (!res.ok) {
+      feedbackEl.textContent = "Error fetching question.";
+      feedbackEl.className = "info";
+      return;
+    }
+    const q = await res.json();
+    currentQuestion = q;
+    renderQuestion();
+  }
+
+  function renderQuestion() {
+    if (!currentQuestion) {
+      Object.values(questionTiles).forEach(({tile, valueEl}) => {
+        tile.classList.remove('missing');
+        valueEl.textContent = '–';
+      });
+      missingLabelEl.textContent = '–';
+      feedbackEl.textContent = 'Press Start to begin.';
+      feedbackEl.className = "info";
+      answerSectionEl.style.display = 'none';
+      return;
+    }
+
+    const { C, P, F, K, missing } = currentQuestion;
+    const mapping = { C, P, F, K };
+
+    for (const key of ['C','P','F','K']) {
+      const { tile, valueEl } = questionTiles[key];
+      const val = mapping[key];
+      tile.classList.remove('missing');
+      if (val === null) {
+        valueEl.textContent = '?';
+        tile.classList.add('missing');
+      } else {
+        valueEl.textContent = val.toFixed(2);
+      }
+    }
+
+    missingLabelEl.textContent = missing;
+    feedbackEl.textContent = '';
+    feedbackEl.className = "info";
+    answerInputEl.value = '';
+    answerInputEl.disabled = false;
+    submitBtn.disabled = false;
+    answerSectionEl.style.display = 'flex';
+    answerInputEl.focus();
+  }
+
+  function handleSubmit() {
+    if (!gameRunning || !currentQuestion) {
+      return;
+    }
+    const userVal = parseFloat(answerInputEl.value);
+    if (isNaN(userVal)) {
+      feedbackEl.textContent = "Please enter a number.";
+      feedbackEl.className = "info";
+      return;
+    }
+
+    const correct = currentQuestion.answer;
+    const diff = Math.abs(userVal - correct);
+
+    questionsAttempted += 1;
+    const isCorrect = diff < 0.005;
+
+    if (isCorrect) {
+      questionsCorrect += 1;
+      feedbackEl.textContent = `Correct! ${currentQuestion.missing} = ${correct.toFixed(2)}.`;
+      feedbackEl.className = "correct";
+    } else {
+      feedbackEl.textContent = `Incorrect. You answered ${userVal.toFixed(2)}, correct is ${correct.toFixed(2)}.`;
+      feedbackEl.className = "incorrect";
+    }
+
+    // Log to history
+    addHistoryEntry(isCorrect, userVal, correct, currentQuestion);
+
+    updateStatusUI();
+
+    // Immediately load next question if still running
+    if (gameRunning) {
+      fetchQuestion();
+    }
+  }
+
+  function tickTimer() {
+    if (!gameRunning) return;
+    remaining -= 1;
+    if (remaining <= 0) {
+      remaining = 0;
+      gameRunning = false;
+      clearInterval(timerId);
+      timerId = null;
+      endGame();
+    }
+    updateStatusUI();
+  }
+
+  function startGame() {
+    if (gameRunning) return;
+
+    let glVal = parseInt(gameLengthInput.value, 10);
+    if (!Number.isFinite(glVal) || glVal <= 0) {
+      glVal = 60;
+      gameLengthInput.value = "60";
+    }
+
+    timerSeconds = glVal;
+    remaining = timerSeconds;
+    questionsAttempted = 0;
+    questionsCorrect = 0;
+    history = [];
+    renderHistory();
+    gameRunning = true;
+
+    updateStatusUI();
+    feedbackEl.textContent = '';
+    feedbackEl.className = "info";
+
+    if (timerId !== null) {
+      clearInterval(timerId);
+    }
+    timerId = setInterval(tickTimer, 1000);
+
+    startBtn.disabled = true;
+    fetchQuestion();
+  }
+
+  function endGame() {
+    feedbackEl.textContent = "Time is up! Final score: "
+      + questionsCorrect + " correct out of " + questionsAttempted + ".";
+    feedbackEl.className = "info";
+    answerInputEl.disabled = true;
+    submitBtn.disabled = true;
+    startBtn.disabled = false;
+  }
+
+  function resetGame() {
+    if (timerId !== null) {
+      clearInterval(timerId);
+      timerId = null;
+    }
+    let glVal = parseInt(gameLengthInput.value, 10);
+    if (!Number.isFinite(glVal) || glVal <= 0) {
+      glVal = 60;
+      gameLengthInput.value = "60";
+    }
+    timerSeconds = glVal;
+    remaining = timerSeconds;
+    questionsAttempted = 0;
+    questionsCorrect = 0;
+    currentQuestion = null;
+    history = [];
+    renderHistory();
+    gameRunning = false;
+    startBtn.disabled = false;
+
+    updateStatusUI();
+    renderQuestion();
+  }
+
+  document.addEventListener('DOMContentLoaded', () => {
+    updateStatusUI();
+    renderQuestion();
+
+    startBtn.addEventListener('click', startGame);
+    resetBtn.addEventListener('click', resetGame);
+    submitBtn.addEventListener('click', handleSubmit);
+
+    answerInputEl.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        handleSubmit();
+      }
+    });
+  });
+</script>
+{% endblock %}
