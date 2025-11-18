@@ -1,0 +1,159 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>{% block title %}Options Toolkit{% endblock %}</title>
+  <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      background: #f9fafb;
+      color: #111827;
+    }
+    .layout {
+      display: flex;
+      min-height: 100vh;
+    }
+    .sidebar {
+      width: 220px;
+      background: #111827;
+      color: #e5e7eb;
+      display: flex;
+      flex-direction: column;
+      padding: 20px 16px;
+      box-sizing: border-box;
+
+      /* Fixed so it doesn't scroll with content */
+      position: fixed;
+      top: 0;
+      left: 0;
+      height: 100vh;
+    }
+    .sidebar h1 {
+      font-size: 1.2rem;
+      margin: 0 0 16px 0;
+      color: #f9fafb;
+    }
+    .nav-section-title {
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: #9ca3af;
+      margin: 16px 0 8px 0;
+    }
+    .nav-link {
+      display: block;
+      padding: 8px 10px;
+      border-radius: 6px;
+      text-decoration: none;
+      color: #e5e7eb;
+      font-size: 0.9rem;
+      margin-bottom: 4px;
+    }
+    .nav-link:hover {
+      background: #1f2937;
+    }
+    .nav-link.active {
+      background: #2563eb;
+      color: #f9fafb;
+    }
+    .content {
+      flex: 1;
+      padding: 24px 32px;
+      box-sizing: border-box;
+      overflow-x: hidden;
+
+      /* Push content to the right of fixed sidebar */
+      margin-left: 220px;
+    }
+    .page-wrapper {
+      width: 80%;
+      margin: 0 auto 40px auto;
+    }
+    .card {
+      background: #ffffff;
+      border-radius: 10px;
+      padding: 16px 20px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.06);
+      margin-bottom: 20px;
+    }
+    .top-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      grid-gap: 20px;
+      align-items: stretch;
+    }
+    .form-row {
+      margin-bottom: 12px;
+    }
+    label {
+      display: block;
+      font-size: 0.9rem;
+      margin-bottom: 4px;
+    }
+    input[type=number] {
+      width: 100%;
+      padding: 4px 6px;
+      border: 1px solid #d1d5db;
+      border-radius: 4px;
+      font-size: 0.9rem;
+    }
+    .option-type-group {
+      display: flex;
+      gap: 12px;
+      margin-top: 4px;
+    }
+    .chart-toggle-group {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px 20px;
+      font-size: 0.85rem;
+      margin-top: 4px;
+    }
+    .chart-toggle-group label {
+      margin-bottom: 0;
+    }
+    .charts {
+      display: grid;
+      grid-template-columns: 1fr;
+      grid-gap: 20px;
+      margin-top: 10px;
+    }
+    @media (min-width: 1100px) {
+      .charts {
+        grid-template-columns: 1fr 1fr;
+      }
+    }
+    .chart-card {
+      background: #ffffff;
+      border-radius: 10px;
+      padding: 10px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.06);
+    }
+  </style>
+  {% block head_extra %}{% endblock %}
+</head>
+<body>
+  <div class="layout">
+    <aside class="sidebar">
+      <h1>Options Tools</h1>
+      <div class="nav-section-title">Analytics</div>
+      <a href="{{ url_for('greeks.greeks') }}"
+         class="nav-link {% if active_page == 'greeks' %}active{% endif %}">
+        Greeks
+      </a>
+      <a href="{{ url_for('greeks.parity_game') }}"
+         class="nav-link {% if active_page == 'parity_game' %}active{% endif %}">
+        Put-Call Game
+      </a>
+    </aside>
+    <main class="content">
+      <div class="page-wrapper">
+        {% block content %}{% endblock %}
+      </div>
+    </main>
+  </div>
+  {% block body_scripts %}{% endblock %}
+</body>
+</html>
